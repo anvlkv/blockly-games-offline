@@ -15,11 +15,22 @@ concurrency:
 
 jobs:
   build-windows:
-    name: Build Windows installer
+    name: Windows ${{ matrix.arch }}
     runs-on: windows-latest
     # `contents: write` is required to create the GitHub Release and upload assets.
     permissions:
       contents: write
+    strategy:
+      # Don't let one architecture's failure hide the others' results.
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            arch: x64
+          - target: i686-pc-windows-msvc
+            arch: x86
+          - target: aarch64-pc-windows-msvc
+            arch: arm64
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -32,11 +43,16 @@ jobs:
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
+          # Keep a separate cache per architecture so the jobs don't thrash
+          # each other's `target` directory.
+          key: ${{ matrix.target }}
 
       - name: Install frontend dependencies
         run: npm ci
@@ -48,10 +64,15 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: tauri-apps/tauri-action@v1
         with:
+          args: --target ${{ matrix.target }}
+          retryAttempts: 3
           uploadWorkflowArtifacts: true
 
       # Everything else (main pushes, `v*` tags, manual runs) builds *and*
-      # publishes a GitHub Release with the installers attached.
+      # publishes a GitHub Release. All three architectures upload their
+      # installers to the same release (the per-arch file names differ, so
+      # there are no collisions); `retryAttempts` covers the concurrent
+      # "find or create the release" race.
       #  - On a tag, the release uses that tag.
       #  - Otherwise `v__VERSION__` is used, where `__VERSION__` is replaced
       #    with the app version from `src-tauri/tauri.conf.json`.
@@ -63,8 +84,9 @@ jobs:
         with:
           tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
           releaseName: 'Blockly Games __VERSION__'
-          releaseBody: 'Offline Windows installers for Google''s Blockly Games (Blockly Games is Apache-2.0 licensed).'
+          releaseBody: 'Offline Windows installers for Google''s Blockly Games (x64, x86 and arm64). Blockly Games is Apache-2.0 licensed.'
           releaseDraft: false
           prerelease: false
-          generateReleaseNotes: true
+          args: --target ${{ matrix.target }}
+          retryAttempts: 3
           uploadWorkflowArtifacts: true

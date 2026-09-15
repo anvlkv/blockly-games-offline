@@ -45,14 +45,15 @@ The bundled app will be produced under `src-tauri/target/release/`.
 
 ## Continuous integration
 
-`.github/workflows/build-windows.yml` builds the Windows installers with
+`.github/workflows/build-windows.yml` builds the Windows installers for
+**x64, x86 (32-bit), and arm64** with
 [`tauri-action`](https://github.com/tauri-apps/tauri-action):
 
 - Pull requests only build (and upload the installers as workflow artifacts).
 - Pushes to `main`, `v*` tags, and manual runs **publish a GitHub Release** with
   the installers attached. On a tag the release uses that tag; otherwise it is
   tagged `v<version>` from `src-tauri/tauri.conf.json` and updated in place on
-  subsequent runs.
+  subsequent runs. All three architectures upload to the same release.
 
 ## License
 
