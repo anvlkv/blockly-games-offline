@@ -17,8 +17,9 @@ jobs:
   build-windows:
     name: Build Windows installer
     runs-on: windows-latest
+    # `contents: write` is required to create the GitHub Release and upload assets.
     permissions:
-      contents: write # required by tauri-action to create a release on tags
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -40,18 +41,30 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
-      # tauri-action runs `tauri build`, which executes `beforeBuildCommand`
-      # (downloading the full Blockly Games site) before compiling.
-      # On `v*` tags it also creates a draft release with the installers;
-      # on branches/PRs it only builds and uploads the workflow artifacts.
-      - name: Build the app
+      # Pull requests only build (fork PRs get a read-only token and must not
+      # publish). `tauri-action` runs `tauri build`, which executes
+      # `beforeBuildCommand` (downloading the full Blockly Games site) first.
+      - name: Build
+        if: github.event_name == 'pull_request'
+        uses: tauri-apps/tauri-action@v1
+        with:
+          uploadWorkflowArtifacts: true
+
+      # Everything else (main pushes, `v*` tags, manual runs) builds *and*
+      # publishes a GitHub Release with the installers attached.
+      #  - On a tag, the release uses that tag.
+      #  - Otherwise `v__VERSION__` is used, where `__VERSION__` is replaced
+      #    with the app version from `src-tauri/tauri.conf.json`.
+      - name: Build and publish release
+        if: github.event_name != 'pull_request'
         uses: tauri-apps/tauri-action@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || 'v__VERSION__' }}
           releaseName: 'Blockly Games __VERSION__'
-          releaseBody: 'Offline build of Google''s Blockly Games. Download an installer below.'
-          releaseDraft: true
+          releaseBody: 'Offline Windows installers for Google''s Blockly Games (Blockly Games is Apache-2.0 licensed).'
+          releaseDraft: false
           prerelease: false
+          generateReleaseNotes: true
           uploadWorkflowArtifacts: true
