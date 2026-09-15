@@ -1,0 +1,57 @@
+name: Build (Windows)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Only keep the most recent run per ref (branches/PRs); never cancel a tag build.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
+jobs:
+  build-windows:
+    name: Build Windows installer
+    runs-on: windows-latest
+    permissions:
+      contents: write # required by tauri-action to create a release on tags
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # tauri-action runs `tauri build`, which executes `beforeBuildCommand`
+      # (downloading the full Blockly Games site) before compiling.
+      # On `v*` tags it also creates a draft release with the installers;
+      # on branches/PRs it only builds and uploads the workflow artifacts.
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: 'Blockly Games __VERSION__'
+          releaseBody: 'Offline build of Google''s Blockly Games. Download an installer below.'
+          releaseDraft: true
+          prerelease: false
+          uploadWorkflowArtifacts: true

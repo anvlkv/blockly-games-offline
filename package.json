@@ -1,0 +1,13 @@
+{
+  "name": "blockly-games-offline",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "download": "node scripts/download-blockly.mjs",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
