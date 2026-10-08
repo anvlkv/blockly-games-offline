@@ -1,10 +1,10 @@
 {
   "name": "blockly-games-offline",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "download": "node scripts/download-blockly.mjs",
+    "build:site": "node scripts/build-site.mjs",
     "tauri": "tauri"
   },
   "devDependencies": {

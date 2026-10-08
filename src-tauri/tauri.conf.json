@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Blockly Games",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "identifier": "com.blocklygames.offline",
   "build": {
-    "beforeDevCommand": "node scripts/download-blockly.mjs",
-    "beforeBuildCommand": "node scripts/download-blockly.mjs --force",
-    "frontendDist": "../site"
+    "beforeDevCommand": "node scripts/build-site.mjs",
+    "beforeBuildCommand": "node scripts/build-site.mjs",
+    "frontendDist": "../site/offline/blockly-games"
   },
   "app": {
     "withGlobalTauri": false,

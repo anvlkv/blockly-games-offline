@@ -14,8 +14,41 @@ concurrency:
   cancel-in-progress: ${{ github.ref_type != 'tag' }}
 
 jobs:
+  # Compile the Blockly Games site once (from the `site/` submodule) and share
+  # the result with every platform job below, so the (slow) Closure Compiler
+  # build is not repeated for x64, x86 and arm64.
+  build-site:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Build the Blockly Games site
+        run: npm run build:site -- --force
+
+      - name: Upload site
+        uses: actions/upload-artifact@v4
+        with:
+          name: blockly-games-site
+          path: site/offline/blockly-games
+
   build-windows:
     name: Windows ${{ matrix.arch }}
+    needs: build-site
     runs-on: windows-latest
     # `contents: write` is required to create the GitHub Release and upload assets.
     permissions:
@@ -57,9 +90,17 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      # Place the pre-built site where tauri.conf.json expects it, so the
+      # `beforeBuildCommand` (a no-op when the site already exists) does not
+      # recompile anything.
+      - name: Download site
+        uses: actions/download-artifact@v4
+        with:
+          name: blockly-games-site
+          path: site/offline/blockly-games
+
       # Pull requests only build (fork PRs get a read-only token and must not
-      # publish). `tauri-action` runs `tauri build`, which executes
-      # `beforeBuildCommand` (downloading the full Blockly Games site) first.
+      # publish).
       - name: Build
         if: github.event_name == 'pull_request'
         uses: tauri-apps/tauri-action@v1

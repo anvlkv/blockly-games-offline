@@ -3,41 +3,55 @@
 A [Tauri v2](https://tauri.app) desktop app that bundles a complete, offline
 copy of [Google's Blockly Games](https://blockly.games) and serves it locally.
 
-The app requires no internet connection to run: the whole site (games, images,
-audio, and all 65 locale files — including Russian `ru.js`) is downloaded at
-build time and embedded into the binary.
+The app requires no internet connection to run. The game source lives in a
+[git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) (`site/`)
+pointing at a [fork of Google's Blockly Games](https://github.com/anvlkv/blockly-games);
+it is compiled at build time with Closure Compiler and embedded into the binary,
+including all 65 locale files (such as Russian `ru.js`).
 
 ## How it works
 
-1. `npm run download` runs `scripts/download-blockly.mjs`, which mirrors the
-   full site into `site/`.
-   - The public `https://blockly.games` domain has been migrated and currently
-     returns 404 for the compiled `generated/*` and `common/boot.js` assets, so
-     the script mirrors the still-working original deployment at
-     `https://blockly-games.appspot.com`.
-2. `tauri.conf.json` points `frontendDist` at `../site`, so Tauri embeds the
+1. `site/` is a git submodule pointing at the `blockly-games` fork — the real,
+   editable game source (each game's `src/*.js` lives under `appengine/`).
+2. `npm run build:site` runs the fork's `Makefile` (`make deps games offline`),
+   which compiles every game with Closure Compiler and assembles a distributable
+   site at `site/offline/blockly-games/`.
+3. `tauri.conf.json` points `frontendDist` at that folder, so Tauri embeds the
    files into the binary and serves them locally via its built-in protocol.
-3. The Apache 2.0 `LICENSE` and `NOTICE` files are bundled as resources (under
+4. The Apache 2.0 `LICENSE` and `NOTICE` files are bundled as resources (under
    `licenses/`) for redistribution compliance.
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org) (for the download script and Tauri CLI)
+- [Node.js](https://nodejs.org) (for the build script and Tauri CLI)
 - [Rust](https://rustup.rs) (stable)
 - Tauri [system prerequisites](https://tauri.app/start/prerequisites/)
+- Java (for Closure Compiler), Python 3, Git, and `make`
+  (used by the Blockly Games build)
 
 ## Development
 
 ```sh
 npm install
-npm run download          # fetch the site (also runs automatically before build)
+git submodule update --init      # fetch the Blockly Games source
+npm run build:site               # compile the games (also runs automatically before build)
 npm run tauri dev
+```
+
+While iterating on game source in `site/appengine/`, recompile a single game
+directly from the submodule instead of rebuilding everything:
+
+```sh
+cd site
+make maze          # or: make bird / turtle / movie / music / ...
+make offline
 ```
 
 ## Build
 
 ```sh
 npm install
+git submodule update --init
 npm run tauri build
 ```
 
